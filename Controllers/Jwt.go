@@ -1,8 +1,13 @@
 package controller
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"log"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -38,7 +43,7 @@ StDlwga4pZiicEeFA5Nizqrt
 `
 )
 
-func GenerateToken(claims jwt.Claims) (string,error) {
+func GenerateToken(claims jwt.Claims) (string, error) {
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
 	if err != nil {
 		log.Fatal(err)
@@ -47,8 +52,78 @@ func GenerateToken(claims jwt.Claims) (string,error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	tokenString, err := token.SignedString(privateKey)
 	if err != nil {
-		return "",err
+		return "", err
 	}
-	return tokenString,nil
+	return tokenString, nil
 }
 
+func VerifyToken(tokenString string) (jwt.Claims, error) {
+	// Parse the correct public key
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := privateKey.Public()
+
+	// Parse the token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return publicKey, nil
+	})
+	if err != nil {
+		fmt.Println("Error parsing token:", err)
+		return nil, err
+	}
+
+	// Ensure token is valid
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	return token.Claims, nil
+}
+
+func GetPublicKey(c *gin.Context) {
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey := privateKey.Public()
+	publicKeyString, err := PublicKeyToPEM(publicKey)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error getting the public key",
+		})
+		return
+	}
+	c.String(200, string(publicKeyString))
+}
+
+// PublicKeyToPEM converts a public key to PEM format bytes
+func PublicKeyToPEM(publicKey interface{}) ([]byte, error) {
+	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("expected RSA public key but got %T", publicKey)
+	}
+
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(rsaPublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %v", err)
+	}
+
+	pemBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	}
+
+	pemBytes := pem.EncodeToMemory(pemBlock)
+	if pemBytes == nil {
+		return nil, fmt.Errorf("failed to encode public key to PEM")
+	}
+
+	return pemBytes, nil
+}

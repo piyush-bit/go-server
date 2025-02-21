@@ -20,7 +20,8 @@ type LoginResponse struct {
 }
 
 type MyClaims struct {
-	Email             string `json:"email"`
+	Id                   int    `json:"id"`
+	Email                string `json:"email"`
 	jwt.RegisteredClaims        // This embeds the standard claims like exp, iat, etc.
 }
 
@@ -77,7 +78,7 @@ func SignUp(c *gin.Context) {
 	}
 
 	// insert the user into the database
-	id, err := database.InsertUser(email,name, hash)
+	id, err := database.InsertUser(email, name, hash)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -95,7 +96,7 @@ func SignUp(c *gin.Context) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-	token,err:= GenerateToken(claim)
+	token, err := GenerateToken(claim)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -115,7 +116,7 @@ func SignUp(c *gin.Context) {
 	})
 }
 
-func Login(c *gin.Context){
+func Login(c *gin.Context) {
 
 	// get email and password from the request
 	email := c.PostForm("email")
@@ -151,6 +152,7 @@ func Login(c *gin.Context){
 
 	// generate a jwt token
 	claim := MyClaims{
+		Id:    user.ID,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
@@ -158,7 +160,7 @@ func Login(c *gin.Context){
 		},
 	}
 
-	token,err:= GenerateToken(claim)
+	token, err := GenerateToken(claim)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -174,17 +176,15 @@ func Login(c *gin.Context){
 			"token": token,
 			"id":    user.ID,
 			"email": email,
-			"name": user.Name,
+			"name":  user.Name,
 		},
 	})
 
-
 }
 
-func GetUserApps(c *gin.Context){
+func GetUserApps(c *gin.Context) {
 	// get the user id from the request
 	id := c.GetInt("id")
-
 	// get all the apps of the user
 	apps, err := database.GetAllAppsOfUser(id)
 	if err != nil {
@@ -201,4 +201,3 @@ func GetUserApps(c *gin.Context){
 		"data":   apps,
 	})
 }
-
