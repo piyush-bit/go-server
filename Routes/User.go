@@ -20,6 +20,7 @@ func SetupRoutes(router *gin.Engine) {
 	// Protected app routes with JWT
 	app := router.Group("/api/v1/app")
 	app.Use(middleware.JWTAuthMiddleware())
+	app.GET("/", controller.Home)
 	app.POST("/create", controller.CreateApp)
 	app.GET("/list", controller.GetUserApps)
 	app.PATCH("/update/:id", controller.UpdateApp)

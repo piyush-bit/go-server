@@ -33,5 +33,7 @@ func VerifyUserToken(c *gin.Context) {
 		return
 	}
 	c.Set("id", userClaim.Id)
+	c.Set("name", userClaim.Name)
+	c.Set("email", userClaim.Email)
 	c.Next()
 }

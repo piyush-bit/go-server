@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"database/sql"
 	database "go_server/Database"
 	"strconv"
 	"time"
@@ -22,6 +23,7 @@ type LoginResponse struct {
 
 type MyClaims struct {
 	Id                   int    `json:"id"`
+	Name                 string `json:"name"`
 	Email                string `json:"email"`
 	jwt.RegisteredClaims        // This embeds the standard claims like exp, iat, etc.
 }
@@ -92,6 +94,8 @@ func SignUp(c *gin.Context) {
 	// generate a jwt token
 
 	claim := MyClaims{
+		Id:    id,
+		Name:  name,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
@@ -180,6 +184,7 @@ func Login(c *gin.Context) {
 	claim := MyClaims{
 		Id:    user.ID,
 		Email: email,
+		Name:  user.Name,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -248,5 +253,36 @@ func GetUserApps(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "success",
 		"data":   apps,
+	})
+}
+
+func Home(c *gin.Context) {
+	id := c.GetInt("id")
+	apps, err := database.GetAllAppsOfUser(id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": "Apps not found",
+			})
+			return
+		}
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error getting the apps",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"data":   gin.H{
+			"apps": apps,
+			"user": gin.H{
+				"id":   id,
+				"name": c.GetString("name"),
+				"email": c.GetString("email"),
+			},
+		},
 	})
 }
