@@ -57,34 +57,41 @@ func GenerateToken(claims jwt.Claims) (string, error) {
 	return tokenString, nil
 }
 
-func VerifyToken(tokenString string) (jwt.Claims, error) {
-	// Parse the correct public key
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
-	if err != nil {
-		log.Fatal(err)
-	}
+func VerifyToken(tokenString string) (*MyClaims, error) {
+    // Parse the correct public key
+    privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
+    if err != nil {
+        log.Fatal(err)
+    }
+    publicKey := privateKey.Public()
 
-	publicKey := privateKey.Public()
+    // Parse the token with explicit claims type
+    token, err := jwt.ParseWithClaims(tokenString, &MyClaims{}, func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+        }
+        return publicKey, nil
+    })
 
-	// Parse the token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return publicKey, nil
-	})
-	if err != nil {
-		fmt.Println("Error parsing token:", err)
-		return nil, err
-	}
+    if err != nil {
+        fmt.Println("Error parsing token:", err)
+        return nil, err
+    }
 
-	// Ensure token is valid
-	if !token.Valid {
-		return nil, fmt.Errorf("invalid token")
-	}
+    // Ensure token is valid
+    if !token.Valid {
+        return nil, fmt.Errorf("invalid token")
+    }
 
-	return token.Claims, nil
+    // Type assert the claims
+    claims, ok := token.Claims.(*MyClaims)
+    if !ok {
+        return nil, fmt.Errorf("invalid claims type")
+    }
+
+    return claims, nil
 }
+
 
 func GetPublicKey(c *gin.Context) {
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))

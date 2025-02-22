@@ -1,7 +1,6 @@
 package database
 
 import (
-	"errors"
 	"fmt"
 	models "go_server/Models"
 	"strings"
@@ -25,7 +24,7 @@ func CreateAppTable() error {
 func InsertApp(name, callbackUrl string, userId int) (int, error) {
 	querry := `INSERT INTO apps (app_name , callback_url , user_id) VALUES ($1 , $2 , $3) RETURNING id`
 	var pk int
-	err := instance.db.QueryRow(querry, name, callbackUrl).Scan(&pk)
+	err := instance.db.QueryRow(querry, name, callbackUrl, userId).Scan(&pk)
 	if err != nil {
 		return 0, err
 	}
@@ -62,9 +61,6 @@ func GetAppById(appId int) (models.App, error) {
 	return app, nil
 }
 func UpdateApp(appId, userId int, name, callbackUrl string) error {
-	if name == "" && callbackUrl == "" {
-		return errors.New("name or callback URL are required")
-	}
 
 	var query string
 	var args []interface{}
@@ -72,10 +68,12 @@ func UpdateApp(appId, userId int, name, callbackUrl string) error {
 	// Build dynamic query based on provided fields
 	setParts := make([]string, 0, 2)
 	if name != "" {
+		fmt.Println("name is not empty")
 		setParts = append(setParts, "app_name = $1")
 		args = append(args, name)
 	}
 	if callbackUrl != "" {
+		fmt.Println("callback_url is not empty")
 		setParts = append(setParts, fmt.Sprintf("callback_url = $%d", len(args)+1))
 		args = append(args, callbackUrl)
 	}
@@ -90,6 +88,7 @@ func UpdateApp(appId, userId int, name, callbackUrl string) error {
 
 	// Add WHERE clause parameters
 	args = append(args, appId, userId)
+	fmt.Println(query)
 
 	_, err := instance.db.Exec(query, args...)
 	return err

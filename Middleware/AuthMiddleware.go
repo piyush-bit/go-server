@@ -32,7 +32,6 @@ func VerifyUserToken(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	claims := userClaim.(controller.MyClaims)
-	c.Set("id", claims.Id)
+	c.Set("id", userClaim.Id)
 	c.Next()
 }

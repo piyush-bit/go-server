@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"fmt"
 	database "go_server/Database"
 	"strconv"
 
@@ -27,6 +28,7 @@ func CreateApp(c *gin.Context) {
 	// insert the app into the database
 	appId, err := database.InsertApp(name, callback_url, id.(int))
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "Error inserting the app",
@@ -104,10 +106,10 @@ func UpdateApp(c *gin.Context){
 	callback_url := c.PostForm("callback_url")
 
 	// check if the name and callback_url are empty
-	if name == "" || callback_url == "" {
+	if name == "" && callback_url == "" {
 		c.JSON(400, gin.H{
 			"status":  "error",
-			"message": "Name and Callback URL are required",
+			"message": "Name or Callback URL are required",
 		})
 		return
 	}

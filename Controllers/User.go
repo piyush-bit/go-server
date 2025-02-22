@@ -2,6 +2,7 @@ package controller
 
 import (
 	database "go_server/Database"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -46,6 +47,7 @@ func SignUp(c *gin.Context) {
 	email := c.PostForm("email")
 	password := c.PostForm("password")
 	name := c.PostForm("name")
+	appid := c.PostForm("app_id")
 
 	// check if the email and password are empty
 	if email == "" || password == "" {
@@ -105,13 +107,36 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
+	appIdInt, err := strconv.Atoi(appid)
+	if err != nil {
+		c.JSON(200, gin.H{
+			"status": "success",
+			"data": gin.H{
+				"token": token,
+				"id":    id,
+				"email": email,
+			},
+		})
+		return
+	}
+
+	tokenId, err := database.InsertToken(appIdInt, token)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
+
 	// send the response
 	c.JSON(200, gin.H{
 		"status": "success",
 		"data": gin.H{
-			"token": token,
-			"id":    id,
-			"email": email,
+			"token":    token,
+			"token_id": tokenId,
+			"id":       id,
+			"email":    email,
 		},
 	})
 }
@@ -121,6 +146,7 @@ func Login(c *gin.Context) {
 	// get email and password from the request
 	email := c.PostForm("email")
 	password := c.PostForm("password")
+	appId := c.PostForm("app_id")
 
 	// check if the email and password are empty
 	if email == "" || password == "" {
@@ -155,7 +181,7 @@ func Login(c *gin.Context) {
 		Id:    user.ID,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -168,15 +194,38 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
+	appIdInt, err := strconv.Atoi(appId)
+	if err != nil {
+		c.JSON(200, gin.H{
+			"status": "success",
+			"data": gin.H{
+				"token": token,
+				"id":    user.ID,
+				"email": email,
+				"name":  user.Name,
+			},
+		})
+		return
+	}
+
+	tokenId, err := database.InsertToken(appIdInt, token)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
 
 	// send the response
 	c.JSON(200, gin.H{
 		"status": "success",
 		"data": gin.H{
-			"token": token,
-			"id":    user.ID,
-			"email": email,
-			"name":  user.Name,
+			"token":    token,
+			"token_id": tokenId,
+			"id":       user.ID,
+			"email":    email,
+			"name":     user.Name,
 		},
 	})
 
