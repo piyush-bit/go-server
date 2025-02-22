@@ -59,23 +59,20 @@ func GetApp(c *gin.Context) {
 		return
 	}
 
-	// get the user id from the context
-	userId, _ := c.Get("id")
 
 	// get the app from the database
 	app, err := database.GetAppById(appId)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(404, gin.H{
+				"status":  "error",
+				"message": "App not found",
+			})
+			return
+		}
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "Error getting the app",
-		})
-		return
-	}
-
-	if(userId != app.UserId){
-		c.JSON(401, gin.H{
-			"status":  "error",
-			"message": "Unauthorized",
 		})
 		return
 	}
