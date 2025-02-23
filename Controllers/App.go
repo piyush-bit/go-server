@@ -154,11 +154,13 @@ func DeleteApp(c *gin.Context){
 
 	err = database.DeleteApp(appId,userIdInt)
 	if err != nil {
+		fmt.Println(err)
 		if err == sql.ErrNoRows{
 			c.JSON(404, gin.H{
 				"status":  "error",
 				"message": "App not found",
 			})
+			return
 		}
 		c.JSON(500, gin.H{
 			"status":  "error",

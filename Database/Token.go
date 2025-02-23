@@ -7,7 +7,7 @@ func CreateTokenTable() error {
 		id SERIAL PRIMARY KEY,
 		app_id INT NOT NULL,
 		token TEXT NOT NULL,
-		FOREIGN KEY (app_id) REFERENCES apps(id)
+		FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE;
 	)`
 	_, err := instance.db.Exec(query)
 	if err != nil {

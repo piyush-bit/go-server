@@ -23,8 +23,8 @@ func SetupRoutes(router *gin.Engine) {
 	app.GET("/", controller.Home)
 	app.POST("/create", controller.CreateApp)
 	app.GET("/list", controller.GetUserApps)
-	app.PATCH("/update/:id", controller.UpdateApp)
-	app.DELETE("/delete/:id", controller.DeleteApp)
+	app.PATCH("/:id", controller.UpdateApp)
+	app.DELETE("/:id", controller.DeleteApp)
 
 	key := router.Group("/api/v1/key")
 	key.GET("/public", controller.GetPublicKey)
