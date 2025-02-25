@@ -12,6 +12,7 @@ func SetupRoutes(router *gin.Engine) {
 	auth := router.Group("/api/v1")
 	auth.POST("/signup", controller.SignUp)
 	auth.POST("/login", controller.Login)
+	auth.POST("/refresh", controller.Refresh)
 
 	// Public app routes with API key middleware
 	publicApp := router.Group("/api/v1/app")

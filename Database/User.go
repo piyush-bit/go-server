@@ -55,6 +55,16 @@ func GetUserByEmail(email string) (models.User, error) {
 	return user, nil
 }
 
+func GetUserById(id string) (models.User , error) {
+	query := `SELECT id, email, password FROM users WHERE id = $1`
+	var user models.User
+	err := instance.db.QueryRow(query, id).Scan(&user.ID, &user.Email, &user.Password)
+	if err!= nil {
+		return models.User{}, err
+	}
+	return user, nil
+}
+
 func CheckIfUserExists(email string) bool {
 	query := `SELECT id FROM users WHERE email = $1`
 	var id int

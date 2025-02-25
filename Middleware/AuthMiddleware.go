@@ -23,7 +23,7 @@ func VerifyUserToken(c *gin.Context) {
 		return
 	}
 	jwtToken := strings.Split(tokenString, " ")[1]
-	userClaim, err := controller.VerifyToken(jwtToken)
+	userClaim, err := controller.VerifyToken[controller.AcessTokenClaim](jwtToken)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status":  "error",

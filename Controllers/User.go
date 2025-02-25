@@ -21,11 +21,16 @@ type LoginResponse struct {
 	} `json:"data"`
 }
 
-type MyClaims struct {
+type AcessTokenClaim struct {
 	Id                   int    `json:"id"`
 	Name                 string `json:"name"`
 	Email                string `json:"email"`
 	jwt.RegisteredClaims        // This embeds the standard claims like exp, iat, etc.
+}
+
+type RefreshTokenClaim struct {
+	Id                   int `json:"id"`
+	jwt.RegisteredClaims     // This embeds the standard claims like exp, iat, etc.
 }
 
 // HashPassword generates a bcrypt hash of the password
@@ -93,7 +98,7 @@ func SignUp(c *gin.Context) {
 
 	// generate a jwt token
 
-	claim := MyClaims{
+	AccessClaim := AcessTokenClaim{
 		Id:    id,
 		Name:  name,
 		Email: email,
@@ -102,7 +107,22 @@ func SignUp(c *gin.Context) {
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-	token, err := GenerateToken(claim)
+	RefreshClaim := RefreshTokenClaim{
+		Id: id,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * 5 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token, err := GenerateToken(AccessClaim)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+	refreshToken, err := GenerateToken(RefreshClaim)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -116,16 +136,26 @@ func SignUp(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "success",
 			"data": gin.H{
-				"token": token,
-				"id":    id,
-				"email": email,
+				"token":         token,
+				"refresh_token": refreshToken,
+				"id":            id,
+				"email":         email,
 			},
 		})
 		return
 	}
 
-	tokenId, err := database.InsertToken(appIdInt, token)
+	tokenId, err := database.InsertToken(appIdInt, token, refreshToken)
 	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
+
+ 	err = database.InsertOrUpdateSession(id,appIdInt,refreshToken)
+	if err!= nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "Error inserting the token",
@@ -137,10 +167,11 @@ func SignUp(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "success",
 		"data": gin.H{
-			"token":    token,
-			"token_id": tokenId,
-			"id":       id,
-			"email":    email,
+			"token":         token,
+			"refresh_token": refreshToken,
+			"token_id":      tokenId,
+			"id":            id,
+			"email":         email,
 		},
 	})
 }
@@ -181,17 +212,32 @@ func Login(c *gin.Context) {
 	}
 
 	// generate a jwt token
-	claim := MyClaims{
+
+	AccessClaim := AcessTokenClaim{
 		Id:    user.ID,
-		Email: email,
 		Name:  user.Name,
+		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
-
-	token, err := GenerateToken(claim)
+	RefreshClaim := RefreshTokenClaim{
+		Id: user.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * 5 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token, err := GenerateToken(AccessClaim)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+	refreshToken, err := GenerateToken(RefreshClaim)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -204,20 +250,139 @@ func Login(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "success",
 			"data": gin.H{
-				"token": token,
-				"id":    user.ID,
-				"email": email,
-				"name":  user.Name,
+				"token":         token,
+				"refresh_token": refreshToken,
+				"id":            user.ID,
+				"email":         email,
+				"name":          user.Name,
 			},
 		})
 		return
 	}
 
-	tokenId, err := database.InsertToken(appIdInt, token)
+	tokenId, err := database.InsertToken(appIdInt, token, refreshToken)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "Error inserting the token",
+		})
+		return
+	}
+	err = database.InsertOrUpdateSession(user.ID,appIdInt,refreshToken)
+	if err!= nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
+	
+	// send the response
+	c.JSON(200, gin.H{
+		"status": "success",
+		"data": gin.H{
+			"token":         token,
+			"token_id":      tokenId,
+			"refresh_token": refreshToken,
+			"id":            user.ID,
+			"email":         email,
+			"name":          user.Name,
+		},
+	})
+
+}
+
+func Refresh(c *gin.Context) {
+	// get the token from the request
+	token := c.PostForm("token")
+	id := c.PostForm("id")
+
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Invalid id",
+		})
+		return
+	}
+	// check if the token is empty
+	if token == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Token is required",
+		})
+		return
+	}
+
+	// check if the token is valid
+	claims, err := VerifyToken[RefreshTokenClaim](token)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid token",
+		})
+		return
+	}
+
+	refreshToken, user, err := database.GetRefreshToken(idInt, claims.Id)
+
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid token",
+		})
+		return
+	}
+
+	if refreshToken != token {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid token",
+		})
+		return
+	}
+
+	// generate a new token
+	claim := RefreshTokenClaim{
+		Id: claims.Id,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	newToken, err := GenerateToken(claim)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+	newAccessToken, err := GenerateToken(AcessTokenClaim{
+		Id:    claims.Id,
+		Name:  user.Name,
+		Email: user.Email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	})
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+
+	// update the token in the database
+	err = database.UpdateRefreshToken(idInt, claims.Id, newToken)
+
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error updating the token",
 		})
 		return
 	}
@@ -226,14 +391,13 @@ func Login(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "success",
 		"data": gin.H{
-			"token":    token,
-			"token_id": tokenId,
-			"id":       user.ID,
-			"email":    email,
-			"name":     user.Name,
+			"token":         newAccessToken,
+			"refresh_token": newToken,
+			"id":            claims.Id,
+			"email":         user.Email,
+			"name":          user.Name,
 		},
 	})
-
 }
 
 func GetUserApps(c *gin.Context) {
@@ -276,11 +440,11 @@ func Home(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"status": "success",
-		"data":   gin.H{
+		"data": gin.H{
 			"apps": apps,
 			"user": gin.H{
-				"id":   id,
-				"name": c.GetString("name"),
+				"id":    id,
+				"name":  c.GetString("name"),
 				"email": c.GetString("email"),
 			},
 		},

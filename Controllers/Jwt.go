@@ -57,7 +57,7 @@ func GenerateToken(claims jwt.Claims) (string, error) {
 	return tokenString, nil
 }
 
-func VerifyToken(tokenString string) (*MyClaims, error) {
+func VerifyToken[T jwt.Claims](tokenString string) (T, error) {
     // Parse the correct public key
     privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
     if err != nil {
@@ -65,8 +65,11 @@ func VerifyToken(tokenString string) (*MyClaims, error) {
     }
     publicKey := privateKey.Public()
 
-    // Parse the token with explicit claims type
-    token, err := jwt.ParseWithClaims(tokenString, &MyClaims{}, func(token *jwt.Token) (interface{}, error) {
+    // Create a new instance of the claims type
+    var claims T
+
+    // Parse the token with the generic claims type
+    token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
         if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
             return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
         }
@@ -75,23 +78,24 @@ func VerifyToken(tokenString string) (*MyClaims, error) {
 
     if err != nil {
         fmt.Println("Error parsing token:", err)
-        return nil, err
+        var zero T
+        return zero, err
     }
 
     // Ensure token is valid
     if !token.Valid {
-        return nil, fmt.Errorf("invalid token")
+        var zero T
+        return zero, fmt.Errorf("invalid token")
     }
 
-    // Type assert the claims
-    claims, ok := token.Claims.(*MyClaims)
-    if !ok {
-        return nil, fmt.Errorf("invalid claims type")
+    // Type assertion is still needed because ParseWithClaims returns Claims interface
+    if claims, ok := token.Claims.(T); ok {
+        return claims, nil
     }
 
-    return claims, nil
+    var zero T
+    return zero, fmt.Errorf("invalid claims type")
 }
-
 
 func GetPublicKey(c *gin.Context) {
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
