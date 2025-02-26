@@ -295,6 +295,56 @@ func Login(c *gin.Context) {
 
 }
 
+func ChangePassword(c *gin.Context){
+	// get the token from the request
+	id := c.PostForm("id")
+	oldPassword := c.PostForm("old_password")
+	newPassword := c.PostForm("new_password")
+	// check if the token is valid
+	user, err := database.GetUserById(id)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid token",
+		})
+		return
+	}
+	// check if the old password is correct
+	if !CheckPasswordHash(oldPassword, user.Password) {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid password",
+		})
+		return
+	}
+
+	// hash the new password
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error hashing the password",
+		})
+		return
+	}
+
+	// update the password in the database
+	err = database.UpdatePassword(id, hashedPassword)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error updating the password",
+		})
+		return
+	}
+
+	// send the response
+	c.JSON(200, gin.H{
+		"status": "success",
+		"message": "Password changed successfully",
+	})
+}
+
 func Refresh(c *gin.Context) {
 	// get the token from the request
 	token := c.PostForm("token")

@@ -73,3 +73,8 @@ func CheckIfUserExists(email string) bool {
 }
 
 
+func UpdatePassword(id, password string) error {
+	query := `UPDATE users SET password = $1 WHERE id = $2`
+	_, err := instance.db.Exec(query, password, id)
+	return err
+}
