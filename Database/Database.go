@@ -3,7 +3,9 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"sync"
+
 	_ "github.com/lib/pq"
 )
 
@@ -11,8 +13,6 @@ var (
 	instance *Database
 	once     sync.Once
 )
-
-const connectionString = "postgres://postgres:PASS@localhost:5432/gopgtest?sslmode=disable"
 
 type Database struct {
 	db *sql.DB
@@ -33,7 +33,7 @@ func init() {
 		panic(err)
 	}
 	err = CreateSessionTable()
-	if err!= nil {
+	if err != nil {
 		panic(err)
 	}
 }
@@ -48,11 +48,14 @@ func GetInstance() *Database {
 }
 
 func connectDB() *sql.DB {
-	db, err := sql.Open("postgres", connectionString)
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		panic("DATABASE_URL is not set")
+	}
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Connected to the database")
 	return db
 }
-

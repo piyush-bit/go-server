@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Github, Mail, LogIn } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [homeData, setHomeData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
@@ -24,6 +25,10 @@ function Dashboard() {
         });
         
         if (!response.ok) {
+          if(response.status === 401)
+          {
+            navigate('/')
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
