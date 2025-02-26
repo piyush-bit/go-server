@@ -207,8 +207,7 @@ DATABASE_URL=postgres://user:password@host:5432/dbname
 
 ```javascript
 function redirectToLogin() {
-  window.location.href = 'https://your-sso-server.com/login?app_id=YOUR_APP_ID&redirect_uri=' + 
-    encodeURIComponent(window.location.origin + '/callback');
+  window.location.href = `https://go-server-qy08.onrender.com/?id={appId}`
 }
 
 // Example login button
@@ -231,15 +230,15 @@ async function handleCallback() {
   
   try {
     // Exchange token_id for actual tokens
-    const response = await fetch(`https://your-sso-server.com/api/v1/key/token/${tokenId}`, {
+    const response = await fetch(`https://go-server-qy08.onrender.com/api/v1/key/token/${tokenId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${btoa(`${YOUR_APP_ID}:${YOUR_APP_SECRET}`)}`
+        'Authorization': `Basic ${btoa(`${YOUR_APP_ID}`)}`
       }
     });
     
-    const { access_token, refresh_token } = await response.json();
+    const { token, refresh_token } = await response.json().data;
     
     // Store tokens securely
     localStorage.setItem('access_token', access_token);
@@ -261,7 +260,7 @@ handleCallback();
 ```javascript
 // Get the SSO public key (store this)
 async function getPublicKey() {
-  const response = await fetch('https://your-sso-server.com/api/v1/key/public');
+  const response = await fetch('https://go-server-qy08.onrender.com/api/v1/key/public');
   const { public_key } = await response.json();
   return public_key;
 }
@@ -287,18 +286,18 @@ async function refreshTokens() {
   const refresh_token = localStorage.getItem('refresh_token');
   
   try {
-    const response = await fetch('https://your-sso-server.com/api/v1/refresh', {
+    const formData = new FormData();
+    formData.append('token', refresh_token);
+    formData.append('id', YOUR_APP_ID);
+    const response = await fetch('https://go-server-qy08.onrender.com/api/v1/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        refresh_token,
-        app_id: YOUR_APP_ID
-      })
+      body: formData
     });
     
-    const { access_token, refresh_token: new_refresh_token } = await response.json();
+    const { access_token, refresh_token: new_refresh_token } = (await response.json()).data;
     
     // Update stored tokens
     localStorage.setItem('access_token', access_token);
@@ -316,14 +315,31 @@ async function refreshTokens() {
 ### 5. Logout
 
 ```javascript
-function logout() {
-  // Clear local tokens
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
+async function logout() {
+  const access_token = localStorage.getItem('access_token');
   
-  // Redirect to SSO logout (optional)
-  window.location.href = 'https://your-sso-server.com/logout?redirect_uri=' + 
-    encodeURIComponent(window.location.origin);
+  try {
+    // Call logout endpoint
+    const formData = new FormData();
+    formData.append('app_id', YOUR_APP_ID);
+    
+    await fetch('https://go-server-qy08.onrender.com/api/v1/logout', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      },
+      body: formData
+    });
+  } catch (error) {
+    console.error('Logout failed:', error);
+  } finally {
+    // Clear local tokens
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    
+    // Redirect to login page
+    window.location.href = '/login';
+  }
 }
 ```
 ## 📋 Data Model
