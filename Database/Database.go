@@ -32,6 +32,10 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	err = CreateSessionTable()
+	if err!= nil {
+		panic(err)
+	}
 }
 
 func GetInstance() *Database {

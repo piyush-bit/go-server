@@ -3,19 +3,19 @@ package database
 import models "go_server/Models"
 
 
-func CreateSessionTable()error {
+func CreateSessionTable() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS sessions (
-		id SERIAL PRIMARY KEY,
 		user_id INT NOT NULL,
 		app_id INT NOT NULL,
 		refresh_token TEXT,
+		PRIMARY KEY (user_id, app_id),
 		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 		FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE
 	);
 	`
 	_, err := instance.db.Exec(query)
-	if err!= nil {
+	if err != nil {
 		return err
 	}
 	return nil

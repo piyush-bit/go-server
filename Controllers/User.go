@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"fmt"
 	database "go_server/Database"
 	"strconv"
 	"time"
@@ -103,7 +104,7 @@ func SignUp(c *gin.Context) {
 		Name:  name,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -218,7 +219,7 @@ func Login(c *gin.Context) {
 		Name:  user.Name,
 		Email: email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -262,21 +263,23 @@ func Login(c *gin.Context) {
 
 	tokenId, err := database.InsertToken(appIdInt, token, refreshToken)
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(500, gin.H{
 			"status":  "error",
-			"message": "Error inserting the token",
+			"message": "Error inserting the access token",
 		})
 		return
 	}
 	err = database.InsertOrUpdateSession(user.ID,appIdInt,refreshToken)
 	if err!= nil {
+		fmt.Println(err)
 		c.JSON(500, gin.H{
 			"status":  "error",
-			"message": "Error inserting the token",
+			"message": "Error inserting the refresh token",
 		})
 		return
 	}
-	
+
 	// send the response
 	c.JSON(200, gin.H{
 		"status": "success",
@@ -315,7 +318,7 @@ func Refresh(c *gin.Context) {
 	}
 
 	// check if the token is valid
-	claims, err := VerifyToken[RefreshTokenClaim](token)
+	claims, err := VerifyToken(token,&RefreshTokenClaim{})
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status":  "error",
@@ -346,7 +349,7 @@ func Refresh(c *gin.Context) {
 	claim := RefreshTokenClaim{
 		Id: claims.Id,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24*5* time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -364,7 +367,7 @@ func Refresh(c *gin.Context) {
 		Name:  user.Name,
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(50 * time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	})

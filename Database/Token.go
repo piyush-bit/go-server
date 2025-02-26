@@ -8,7 +8,7 @@ func CreateTokenTable() error {
 		app_id INT NOT NULL,
 		token TEXT NOT NULL,
 		refresh_token TEXT ,
-		FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE;
+		FOREIGN KEY (app_id) REFERENCES apps(id) ON DELETE CASCADE
 	)`
 	_, err := instance.db.Exec(query)
 	if err != nil {

@@ -57,16 +57,13 @@ func GenerateToken(claims jwt.Claims) (string, error) {
 	return tokenString, nil
 }
 
-func VerifyToken[T jwt.Claims](tokenString string) (T, error) {
+func VerifyToken[T jwt.Claims](tokenString string, claims T) (T, error) {
     // Parse the correct public key
     privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
     if err != nil {
         log.Fatal(err)
     }
     publicKey := privateKey.Public()
-
-    // Create a new instance of the claims type
-    var claims T
 
     // Parse the token with the generic claims type
     token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -85,10 +82,10 @@ func VerifyToken[T jwt.Claims](tokenString string) (T, error) {
     // Ensure token is valid
     if !token.Valid {
         var zero T
-        return zero, fmt.Errorf("invalid token")
+        return zero, err
     }
 
-    // Type assertion is still needed because ParseWithClaims returns Claims interface
+    // Type assertion to get claims
     if claims, ok := token.Claims.(T); ok {
         return claims, nil
     }
