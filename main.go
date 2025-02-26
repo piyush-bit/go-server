@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	routes "go_server/Routes"
 	"os"
 	"strings"
@@ -11,13 +12,7 @@ import (
 func main() {
 	router := gin.Default()
 
-	port := os.Getenv("PORT")
-	if(port == "") {
-		port = "8080"
-	}
-	if err := router.Run(":" + port); err != nil {
-		panic(err)
-	}
+	
 
 	// Add CORS middleware
 	router.Use(func(c *gin.Context) {
@@ -34,14 +29,22 @@ func main() {
 	})
 
 	routes.SetupRoutes(router)
-	router.Static("/assets", "./dist/assets")
+	router.Static("/dist", "./dist")
 	router.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if !strings.HasPrefix(path, "/api/") {
-			c.File("./dist/index.html")
+		fmt.Println(path)
+		if strings.HasPrefix(path, "/api/") {
+			c.JSON(404, gin.H{"error": "Not found"})
 		} else {
-			c.JSON(404, gin.H{"message": "Page not found"})
+			c.File("./dist/index.html")
 		}
 	})
-	router.Run(":8080")
+
+	port := os.Getenv("PORT")
+	if(port == "") {
+		port = "8080"
+	}
+	if err := router.Run(":" + port); err != nil {
+		panic(err)
+	}
 }
