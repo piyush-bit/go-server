@@ -12,6 +12,7 @@ func SetupRoutes(router *gin.Engine) {
 	auth.POST("/signup", controller.SignUp)
 	auth.POST("/login", controller.Login)
 	auth.POST("/refresh", controller.Refresh)
+	auth.POST("/change-password",controller.ChangePassword)
 
 	// Protected user routes with JWT
 	auth.Use(middleware.JWTAuthMiddleware())
