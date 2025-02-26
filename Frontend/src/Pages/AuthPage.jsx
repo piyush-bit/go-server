@@ -9,6 +9,8 @@ const AuthPage = () => {
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [companyData, setCompanyData] = useState(null);
+
+  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI;
   
     const useQuery = () => {
       return new URLSearchParams(useLocation().search);
@@ -29,7 +31,7 @@ const AuthPage = () => {
       }
   
       try {
-        const response = await fetch('http://localhost:8080/api/v1/signup', {
+        const response = await fetch(BACKEND_URI+'/api/v1/signup', {
           method: 'POST',
           body: formData,
         });
@@ -62,7 +64,7 @@ const AuthPage = () => {
         formData.append('app_id', companyData.id);
       }
       try {
-        const response = await fetch('http://localhost:8080/api/v1/login', {
+        const response = await fetch(BACKEND_URI+'/api/v1/login', {
           method: 'POST',
           body: formData,
         });
@@ -93,7 +95,7 @@ const AuthPage = () => {
       }
       const fetchData = async () => {
         try {
-          const response = await fetch('http://localhost:8080/api/v1/app/get/'+id);
+          const response = await fetch(BACKEND_URI+'/api/v1/app/get/'+id);
           const data = await response.json();
           console.log(data);
           setCompanyData(data.data);

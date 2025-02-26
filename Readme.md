@@ -165,6 +165,9 @@ GIN_MODE=release  # Use 'debug' for development
 
 # Database Configuration
 DATABASE_URL=postgres://user:password@host:5432/dbname
+
+#Private Key
+RSA_PRIVATE_KEY=<private_key_pem>
 ```
 
 ## 📚 API Reference

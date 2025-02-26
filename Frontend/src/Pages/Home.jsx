@@ -10,15 +10,19 @@ function Dashboard() {
   const [formData, setFormData] = useState({ name: '', callback_url: '' });
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
 
+  const [refresh,setRefresh] = useState(0);
+
   const showAlert = (message, type = 'success') => {
     setAlert({ show: true, message, type });
     setTimeout(() => setAlert({ show: false, message: '', type: 'success' }), 3000);
   };
 
+  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/v1/app/', {
+        const response = await fetch(BACKEND_URI+'/api/v1/app/', {
           headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('token')
           }
@@ -41,11 +45,11 @@ function Dashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [refresh]);
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/v1/app/${id}`, {
+      const response = await fetch(BACKEND_URI+`/api/v1/app/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -71,8 +75,8 @@ function Dashboard() {
     e.preventDefault();
     try {
       const url = editingApp 
-        ? `http://localhost:8080/api/v1/app/${editingApp.id}`
-        : 'http://localhost:8080/api/v1/app/create';
+        ? BACKEND_URI+`/api/v1/app/${editingApp.id}`
+        : BACKEND_URI+'/api/v1/app/create';
       
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
