@@ -6,13 +6,19 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const (
-	privateKeyPem = `-----BEGIN PRIVATE KEY-----
+func getPrivateKeyPem() string {
+	// Try to get the key from environment variable
+	if envKey := os.Getenv("RSA_PRIVATE_KEY"); envKey != "" {
+		return envKey
+	}
+	// Fallback to hardcoded key
+	return `-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC31WQlvnveBvgJ
 g2XrxpQMtBeJok5YbV7A8Ilvgenmt3JIH/dJNTINoDDTlqAn/A8UfhUWftYpZup1
 Gjr/8+ikH8Xao+rEKCZ3f94pln8uQJhGElUs0Ge2kUTSHRZ4/1L3uOd+oEPRuBtW
@@ -41,10 +47,10 @@ iQxNfkaekiJ+PFbYrOFM0Mj+z4/hXz5MkM8WZeaft2ILzl4W8VAnpxzWY6zwSXuU
 StDlwga4pZiicEeFA5Nizqrt
 -----END PRIVATE KEY-----
 `
-)
+}
 
 func GenerateToken(claims jwt.Claims) (string, error) {
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(getPrivateKeyPem()))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,44 +64,44 @@ func GenerateToken(claims jwt.Claims) (string, error) {
 }
 
 func VerifyToken[T jwt.Claims](tokenString string, claims T) (T, error) {
-    // Parse the correct public key
-    privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
-    if err != nil {
-        log.Fatal(err)
-    }
-    publicKey := privateKey.Public()
+	// Parse the correct public key
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(getPrivateKeyPem()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey := privateKey.Public()
 
-    // Parse the token with the generic claims type
-    token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-        if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-        }
-        return publicKey, nil
-    })
+	// Parse the token with the generic claims type
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return publicKey, nil
+	})
 
-    if err != nil {
-        fmt.Println("Error parsing token:", err)
-        var zero T
-        return zero, err
-    }
+	if err != nil {
+		fmt.Println("Error parsing token:", err)
+		var zero T
+		return zero, err
+	}
 
-    // Ensure token is valid
-    if !token.Valid {
-        var zero T
-        return zero, err
-    }
+	// Ensure token is valid
+	if !token.Valid {
+		var zero T
+		return zero, err
+	}
 
-    // Type assertion to get claims
-    if claims, ok := token.Claims.(T); ok {
-        return claims, nil
-    }
+	// Type assertion to get claims
+	if claims, ok := token.Claims.(T); ok {
+		return claims, nil
+	}
 
-    var zero T
-    return zero, fmt.Errorf("invalid claims type")
+	var zero T
+	return zero, fmt.Errorf("invalid claims type")
 }
 
 func GetPublicKey(c *gin.Context) {
-	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(privateKeyPem))
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM([]byte(getPrivateKeyPem()))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -155,8 +155,8 @@ func SignUp(c *gin.Context) {
 		return
 	}
 
- 	err = database.InsertOrUpdateSession(id,appIdInt,refreshToken)
-	if err!= nil {
+	err = database.InsertOrUpdateSession(id, appIdInt, refreshToken)
+	if err != nil {
 		c.JSON(500, gin.H{
 			"status":  "error",
 			"message": "Error inserting the token",
@@ -270,8 +270,8 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	err = database.InsertOrUpdateSession(user.ID,appIdInt,refreshToken)
-	if err!= nil {
+	err = database.InsertOrUpdateSession(user.ID, appIdInt, refreshToken)
+	if err != nil {
 		fmt.Println(err)
 		c.JSON(500, gin.H{
 			"status":  "error",
@@ -302,6 +302,7 @@ func Refresh(c *gin.Context) {
 
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(400, gin.H{
 			"status":  "error",
 			"message": "Invalid id",
@@ -318,7 +319,7 @@ func Refresh(c *gin.Context) {
 	}
 
 	// check if the token is valid
-	claims, err := VerifyToken(token,&RefreshTokenClaim{})
+	claims, err := VerifyToken(token, &RefreshTokenClaim{})
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status":  "error",
@@ -349,7 +350,7 @@ func Refresh(c *gin.Context) {
 	claim := RefreshTokenClaim{
 		Id: claims.Id,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24*5* time.Minute)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * 5 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -403,7 +404,7 @@ func Refresh(c *gin.Context) {
 	})
 }
 
-func Logout(c *gin.Context){
+func Logout(c *gin.Context) {
 	// get the user id from the request
 	id := c.GetInt("id")
 	appId := c.PostForm("app_id")
@@ -417,7 +418,6 @@ func Logout(c *gin.Context){
 		return
 	}
 
-
 	// delete the token from the database
 	err = database.DeleteSession(id, appIdInt)
 	if err != nil {
@@ -430,7 +430,7 @@ func Logout(c *gin.Context){
 
 	// send the response
 	c.JSON(200, gin.H{
-		"status": "success",
+		"status":  "success",
 		"message": "Logout successful",
 	})
 
