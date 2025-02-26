@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pg_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: PASS
+      POSTGRES_DB: gopgtest
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  server:
+    build: .
+    container_name: go_server
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: "postgres://postgres:PASS@postgres:5432/gopgtest?sslmode=disable"
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  pg_data:
