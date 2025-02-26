@@ -55,9 +55,9 @@ sequenceDiagram
 
 ### Prerequisites
 
-- Go 1.18+ (for building from source)
+- Go 1.22.6+ (for building from source)
 - PostgreSQL database
-- Docker and Docker Compose (for containerized deployment)
+- Docker or Docker Compose (for containerized deployment)
 
 ### Option 1: Docker Deployment (Recommended)
 
@@ -69,116 +69,23 @@ The project includes a complete Docker Compose configuration for easy deployment
 2. PostgreSQL database
 3. Proper networking and volume persistence
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  app:
-    build: .
-    container_name: goauth-sso
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=goauth_sso
-      - DB_SSL_MODE=disable
-      - PORT=8080
-      - GIN_MODE=release
-      - JWT_PRIVATE_KEY_PATH=/app/keys/private.key
-      - JWT_PUBLIC_KEY_PATH=/app/keys/public.key
-      - JWT_ACCESS_TOKEN_EXPIRY=15m
-      - JWT_REFRESH_TOKEN_EXPIRY=120h
-      - TEMP_TOKEN_EXPIRY=2m
-      - HASH_COST=10
-      - FRONTEND_URL=http://localhost:3000
-    volumes:
-      - ./keys:/app/keys
-    networks:
-      - goauth-network
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:14-alpine
-    container_name: goauth-postgres
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=goauth_sso
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - goauth-network
-    restart: unless-stopped
-
-volumes:
-  postgres-data:
-
-networks:
-  goauth-network:
-    driver: bridge
-```
 
 #### Dockerfile
 
 The project includes a multi-stage Dockerfile that optimizes the build process:
+1. Builds the application
+2. Creates a lightweight runtime image
 
-```dockerfile
-# Build stage
-FROM golang:1.18-alpine AS builder
 
-WORKDIR /app
-
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Download all dependencies
-RUN go mod download
-
-# Copy the source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o goauth-sso .
-
-# Final stage
-FROM alpine:latest
-
-RUN apk --no-cache add ca-certificates
-
-WORKDIR /app/
-
-# Copy the binary from builder
-COPY --from=builder /app/goauth-sso .
-
-# Copy frontend assets
-COPY --from=builder /app/assets ./assets
-
-# Create directory for keys
-RUN mkdir -p /app/keys
-
-# Expose port
-EXPOSE 8080
-
-# Command to run
-ENTRYPOINT ["./goauth-sso"]
-```
 
 #### Deployment Steps
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/goauth-sso.git
-cd goauth-sso
+git clone https://github.com/piyush-bit/go-server
+cd go-server
 
-# Generate RSA keys for JWT signing
+# Generate RSA keys for JWT signing (optional)
 mkdir -p keys
 openssl genrsa -out keys/private.key 2048
 openssl rsa -in keys/private.key -pubout -out keys/public.key
@@ -208,24 +115,8 @@ docker build -t goauth-sso:latest .
 docker run -d \
   --name goauth-sso \
   -p 8080:8080 \
-  -e DB_HOST=postgres \
-  -e DB_PORT=5432 \
-  -e DB_USER=postgres \
-  -e DB_PASSWORD=postgres \
-  -e DB_NAME=goauth_sso \
-  -e DB_SSL_MODE=disable \
-  -e PORT=8080 \
-  -e GIN_MODE=release \
-  -e JWT_PRIVATE_KEY_PATH=/app/keys/private.key \
-  -e JWT_PUBLIC_KEY_PATH=/app/keys/public.key \
-  -e JWT_ACCESS_TOKEN_EXPIRY=15m \
-  -e JWT_REFRESH_TOKEN_EXPIRY=120h \
-  -e TEMP_TOKEN_EXPIRY=2m \
-  -e HASH_COST=10 \
-  -e FRONTEND_URL=http://localhost:3000 \
-  -v $(pwd)/keys:/app/keys \
+  -e DATABASE_URL=postgres://user:password@host:5432/dbname \
   goauth-sso:latest
-```
 
 3. `docker-cleanup.sh` - Removes containers and images
 ```bash
@@ -247,7 +138,7 @@ go mod download
 # Configure PostgreSQL (make sure it's running)
 # Create database and user
 
-# Generate RSA keys for JWT signing
+# Generate RSA keys for JWT signing (optional)
 mkdir -p keys
 openssl genrsa -out keys/private.key 2048
 openssl rsa -in keys/private.key -pubout -out keys/public.key
@@ -273,25 +164,7 @@ PORT=8080
 GIN_MODE=release  # Use 'debug' for development
 
 # Database Configuration
-DB_HOST=postgres
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=secure_password
-DB_NAME=goauth_sso
-DB_SSL_MODE=disable  # Use 'require' in production
-
-# JWT Configuration
-JWT_PRIVATE_KEY_PATH=./keys/private.key
-JWT_PUBLIC_KEY_PATH=./keys/public.key
-JWT_ACCESS_TOKEN_EXPIRY=15m
-JWT_REFRESH_TOKEN_EXPIRY=120h  # 5 days
-TEMP_TOKEN_EXPIRY=2m  # Temporary token expiry
-
-# Security
-HASH_COST=10  # Password hashing cost
-
-# Frontend Configuration
-FRONTEND_URL=http://localhost:3000  # For CORS and redirects
+DATABASE_URL=postgres://user:password@host:5432/dbname
 ```
 
 ## 📚 API Reference
@@ -453,7 +326,6 @@ function logout() {
     encodeURIComponent(window.location.origin);
 }
 ```
-
 ## 📋 Data Model
 
 ### User
@@ -475,39 +347,38 @@ type User struct {
 type Application struct {
     ID           uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
     Name         string    `json:"name"`
-    AppID        string    `json:"app_id" gorm:"unique"`
-    AppSecret    string    `json:"app_secret"`
-    RedirectURL  string    `json:"redirect_url"`
+    CallbackUrl  string    `json:"callback_url"`
     UserID       uuid.UUID `json:"user_id"`
     CreatedAt    time.Time `json:"created_at"`
     UpdatedAt    time.Time `json:"updated_at"`
 }
 ```
 
-### RefreshToken
+### Token
 
 ```go
-type RefreshToken struct {
+type Token struct {
     ID           uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
     Token        string    `json:"token" gorm:"unique"`
-    UserID       uuid.UUID `json:"user_id"`
-    ApplicationID string    `json:"application_id"`
-    ExpiresAt    time.Time `json:"expires_at"`
+    RefreshToken string    `json:"refresh_token" gorm:"unique"`
+    AppID        uuid.UUID `json:"app_id"`
     CreatedAt    time.Time `json:"created_at"`
 }
 ```
 
-### TempToken
+### Session
 
 ```go
-type TempToken struct {
-    ID        uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-    UserID    uuid.UUID `json:"user_id"`
-    AppID     string    `json:"app_id"`
-    ExpiresAt time.Time `json:"expires_at"`
-    CreatedAt time.Time `json:"created_at"`
+type Session struct {
+    ID           uuid.UUID `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+    RefreshToken string    `json:"refresh_token" gorm:"unique"`
+    UserID       uuid.UUID `json:"user_id"`
+    AppID        uuid.UUID `json:"app_id"`
+    CreatedAt    time.Time `json:"created_at"`
 }
 ```
+
+
 
 ## 🐳 Docker Configuration
 
@@ -519,157 +390,35 @@ For a production-ready Docker deployment, consider these additional configuratio
 
 ```yaml
 # docker-compose.prod.yml
-version: '3.8'
+version: "3.8"
 
 services:
-  app:
-    build: .
-    container_name: goauth-sso
+  postgres:
+    image: postgres:16-alpine
+    container_name: pg_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: PASS
+      POSTGRES_DB: gopgtest
     ports:
-      - "8080:8080"
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  server:
+    build: .
+    container_name: go_server
     depends_on:
       - postgres
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_SSL_MODE=require
-      - PORT=8080
-      - GIN_MODE=release
-      - JWT_PRIVATE_KEY_PATH=/app/keys/private.key
-      - JWT_PUBLIC_KEY_PATH=/app/keys/public.key
-      - JWT_ACCESS_TOKEN_EXPIRY=15m
-      - JWT_REFRESH_TOKEN_EXPIRY=120h
-      - TEMP_TOKEN_EXPIRY=2m
-      - HASH_COST=12
-      - FRONTEND_URL=${FRONTEND_URL}
-    volumes:
-      - ./keys:/app/keys
-    networks:
-      - goauth-network
-    restart: unless-stopped
-    # Add healthcheck
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-  postgres:
-    image: postgres:14-alpine
-    container_name: goauth-postgres
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - goauth-network
-    restart: unless-stopped
-    # Add healthcheck
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # Add a reverse proxy for SSL termination
-  nginx:
-    image: nginx:alpine
-    container_name: goauth-nginx
+      DATABASE_URL: "postgres://postgres:PASS@postgres:5432/gopgtest?sslmode=disable"
+    restart: always
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./nginx/www:/var/www/html
-    depends_on:
-      - app
-    networks:
-      - goauth-network
-    restart: unless-stopped
+      - "8080:8080"
 
 volumes:
-  postgres-data:
-
-networks:
-  goauth-network:
-    driver: bridge
-```
-
-#### Using Docker with Environment Files
-
-```bash
-# Create .env file for production
-cat > .env.prod << EOL
-DB_USER=goauth_prod_user
-DB_PASSWORD=strong_production_password
-DB_NAME=goauth_prod
-FRONTEND_URL=https://sso.yourdomain.com
-EOL
-
-# Start with production configuration
-docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
-```
-
-### Docker Image Distribution
-
-If you want to distribute your Docker image:
-
-```bash
-# Build with a specific tag
-docker build -t yourusername/goauth-sso:1.0.0 .
-
-# Push to Docker Hub
-docker push yourusername/goauth-sso:1.0.0
-```
-
-### Container Orchestration
-
-For Kubernetes deployment, create basic manifests:
-
-```yaml
-# kubernetes/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: goauth-sso
-  labels:
-    app: goauth-sso
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: goauth-sso
-  template:
-    metadata:
-      labels:
-        app: goauth-sso
-    spec:
-      containers:
-      - name: goauth-sso
-        image: yourusername/goauth-sso:1.0.0
-        ports:
-        - containerPort: 8080
-        env:
-        - name: DB_HOST
-          value: postgres-service
-        - name: DB_PORT
-          value: "5432"
-        # Add more environment variables from secrets/configmaps
-        volumeMounts:
-        - name: jwt-keys
-          mountPath: /app/keys
-      volumes:
-      - name: jwt-keys
-        secret:
-          secretName: jwt-keys
+  pg_data:
 ```
 
 ## 🔐 Security Considerations
@@ -682,36 +431,56 @@ spec:
 - **Password Hashing**: User passwords are securely hashed using bcrypt
 - **Rate Limiting**: Implement rate limiting in your production environment to prevent abuse
 
-## 🧪 Testing
-
-```bash
-# Run tests
-go test ./...
-
-# Run tests with coverage
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
-```
-
 ## 🔄 Advanced Usage
 
 ### Custom Claims
 
-The JWT access tokens include the following claims:
+The JWT tokens include the following claims:
 
+#### Access Token Claims
 ```json
 {
-  "sub": "user-uuid",
-  "email": "user@example.com",
+  "id": 123,
   "name": "User Name",
+  "email": "user@example.com",
   "iss": "goauth-sso",
-  "aud": "app-id",
+  "sub": "123",
+  "aud": ["app-id"],
   "exp": 1636500000,
+  "nbf": 1636400000,
   "iat": 1636400000,
   "jti": "unique-token-id"
 }
 ```
 
+#### Refresh Token Claims
+```json
+{
+  "id": 123,
+  "iss": "goauth-sso",
+  "sub": "123",
+  "aud": ["app-id"],
+  "exp": 1636500000,
+  "nbf": 1636400000,
+  "iat": 1636400000,
+  "jti": "unique-token-id"
+}
+```
+
+The claims are structured using the following Go types:
+```go
+type AccessTokenClaim struct {
+    Id                   int    `json:"id"`
+    Name                 string `json:"name"`
+    Email                string `json:"email"`
+    jwt.RegisteredClaims        // This embeds the standard claims like exp, iat, etc.
+}
+
+type RefreshTokenClaim struct {
+    Id                   int `json:"id"`
+    jwt.RegisteredClaims     // This embeds the standard claims like exp, iat, etc.
+}
+```
 ### Multi-tenant Support
 
 While the system doesn't have built-in multi-tenancy, you can achieve it by:
