@@ -2,6 +2,7 @@ package main
 
 import (
 	routes "go_server/Routes"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,15 @@ import (
 
 func main() {
 	router := gin.Default()
+
+	port := os.Getenv("PORT")
+	if(port == "") {
+		port = "8080"
+	}
+	if err := router.Run(":" + port); err != nil {
+		panic(err)
+	}
+
 	// Add CORS middleware
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
