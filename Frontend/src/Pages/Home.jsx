@@ -17,7 +17,7 @@ function Dashboard() {
     setTimeout(() => setAlert({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI;
+  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
 
   useEffect(() => {
     const fetchData = async () => {

@@ -12,8 +12,6 @@ import (
 func main() {
 	router := gin.Default()
 
-	
-
 	// Add CORS middleware
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -35,13 +33,15 @@ func main() {
 		fmt.Println(path)
 		if strings.HasPrefix(path, "/api/") {
 			c.JSON(404, gin.H{"error": "Not found"})
-		} else {
+		} else if c.Request.Method == "GET" {
 			c.File("./dist/index.html")
+		} else {
+			c.JSON(404, gin.H{"error": "Not found"})
 		}
 	})
 
 	port := os.Getenv("PORT")
-	if(port == "") {
+	if port == "" {
 		port = "8080"
 	}
 	if err := router.Run(":" + port); err != nil {

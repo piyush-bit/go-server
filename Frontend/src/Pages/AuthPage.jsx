@@ -10,7 +10,7 @@ const AuthPage = () => {
     const [name, setName] = useState('');
     const [companyData, setCompanyData] = useState(null);
 
-  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI;
+  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
   
     const useQuery = () => {
       return new URLSearchParams(useLocation().search);
