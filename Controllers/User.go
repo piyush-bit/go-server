@@ -403,6 +403,39 @@ func Refresh(c *gin.Context) {
 	})
 }
 
+func Logout(c *gin.Context){
+	// get the user id from the request
+	id := c.GetInt("id")
+	appId := c.PostForm("app_id")
+
+	appIdInt, err := strconv.Atoi(appId)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Invalid app_id",
+		})
+		return
+	}
+
+
+	// delete the token from the database
+	err = database.DeleteSession(id, appIdInt)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error deleting the token",
+		})
+		return
+	}
+
+	// send the response
+	c.JSON(200, gin.H{
+		"status": "success",
+		"message": "Logout successful",
+	})
+
+}
+
 func GetUserApps(c *gin.Context) {
 	// get the user id from the request
 	id := c.GetInt("id")

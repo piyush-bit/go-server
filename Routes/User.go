@@ -13,6 +13,10 @@ func SetupRoutes(router *gin.Engine) {
 	auth.POST("/login", controller.Login)
 	auth.POST("/refresh", controller.Refresh)
 
+	// Protected user routes with JWT
+	auth.Use(middleware.JWTAuthMiddleware())
+	auth.POST("/logout", controller.Logout)
+
 	// Public app routes with API key middleware
 	publicApp := router.Group("/api/v1/app")
 	publicApp.GET("/get/:id", controller.GetApp)
