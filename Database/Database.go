@@ -58,7 +58,7 @@ func runMigrations(db *sql.DB) error {
     }
     
     // Run migrations from the migrations directory
-    if err := goose.Up(db, "db/migrations"); err != nil {
+    if err := goose.Up(db, "Database/Migrations"); err != nil {
         return err
     }
     
