@@ -1,36 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { Github, Mail, LogIn } from 'lucide-react';
+import { Github, Mail, LogIn, Copy, Check } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [homeData, setHomeData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingApp, setEditingApp] = useState(null);
   const [formData, setFormData] = useState({ name: '', callback_url: '' });
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' });
+  const [copiedId, setCopiedId] = useState(null);
 
-  const [refresh,setRefresh] = useState(0);
+  const [refresh, setRefresh] = useState(0);
 
   const showAlert = (message, type = 'success') => {
     setAlert({ show: true, message, type });
     setTimeout(() => setAlert({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
+  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI ?? "";
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(BACKEND_URI+'/api/v1/app/', {
+        const response = await fetch(BACKEND_URI + '/api/v1/app/', {
           headers: {
             'Authorization': 'Bearer ' + localStorage.getItem('token')
           }
         });
         
         if (!response.ok) {
-          if(response.status === 401)
-          {
+          if (response.status === 401) {
             navigate('/')
           }
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -49,7 +50,7 @@ function Dashboard() {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(BACKEND_URI+`/api/v1/app/${id}`, {
+      const response = await fetch(BACKEND_URI + `/api/v1/app/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -75,8 +76,8 @@ function Dashboard() {
     e.preventDefault();
     try {
       const url = editingApp 
-        ? BACKEND_URI+`/api/v1/app/${editingApp.id}`
-        : BACKEND_URI+'/api/v1/app/create';
+        ? BACKEND_URI + `/api/v1/app/${editingApp.id}`
+        : BACKEND_URI + '/api/v1/app/create';
       
       const formDataToSend = new FormData();
       formDataToSend.append('name', formData.name);
@@ -123,6 +124,22 @@ function Dashboard() {
     setEditingApp(app);
     setFormData({ name: app.name, callback_url: app.callback_url });
     setIsModalOpen(true);
+  };
+
+  const copyUrl = (id) => {
+    const baseUrl = window.location.origin;
+    const urlToCopy = `${baseUrl}?id=${id}`;
+    
+    navigator.clipboard.writeText(urlToCopy)
+      .then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+        showAlert('URL copied to clipboard');
+      })
+      .catch(err => {
+        console.error('Failed to copy: ', err);
+        showAlert('Failed to copy URL', 'error');
+      });
   };
 
   if (!homeData) return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -175,7 +192,25 @@ function Dashboard() {
                 </button>
               </div>
             </div>
-            <p className="text-gray-600 break-all">{app.callback_url}</p>
+            <p className="text-gray-600 break-all mb-4">{app.callback_url}</p>
+            <div className="flex items-center">
+              <button
+                onClick={() => copyUrl(app.id)}
+                className="flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition duration-200"
+              >
+                {copiedId === app.id ? (
+                  <>
+                    <Check size={16} />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} />
+                    Copy URL
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         ))}
       </div>
