@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
-
+	"github.com/pressly/goose/v3"
 	_ "github.com/lib/pq"
 )
 
@@ -20,28 +20,19 @@ type Database struct {
 
 func init() {
 	GetInstance()
-	err := CreateUserTable()
-	if err != nil {
-		panic(err)
-	}
-	err = CreateAppTable()
-	if err != nil {
-		panic(err)
-	}
-	err = CreateTokenTable()
-	if err != nil {
-		panic(err)
-	}
-	err = CreateSessionTable()
-	if err != nil {
-		panic(err)
-	}
 }
 
 func GetInstance() *Database {
 	once.Do(func() {
+		db := connectDB()
+
+		// Run migrations
+		err := runMigrations(db)
+		if err!= nil {
+			panic(fmt.Sprintf("Error running migrations: %v", err))
+		}
 		instance = &Database{
-			db: connectDB(),
+			db: db,
 		}
 	})
 	return instance
@@ -58,4 +49,19 @@ func connectDB() *sql.DB {
 	}
 	fmt.Println("Connected to the database")
 	return db
+}
+
+func runMigrations(db *sql.DB) error {
+    // Set dialect to postgres
+    if err := goose.SetDialect("postgres"); err != nil {
+        return err
+    }
+    
+    // Run migrations from the migrations directory
+    if err := goose.Up(db, "db/migrations"); err != nil {
+        return err
+    }
+    
+    fmt.Println("Database migrations completed successfully")
+    return nil
 }
