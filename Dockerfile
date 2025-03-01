@@ -18,6 +18,7 @@ FROM alpine:latest AS final
 WORKDIR /app
 COPY --from=build-frontend /app/dist ./dist
 COPY --from=build-backend /app/server ./server
+COPY --from=build-backend /app/Database/Migrations ./Database/Migrations
 
 # Expose the port the server runs on
 EXPOSE 8080
