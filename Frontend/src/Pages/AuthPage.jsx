@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Github, Mail, LogIn } from 'lucide-react';
 import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
@@ -11,7 +11,6 @@ const AuthPage = () => {
     const [companyData, setCompanyData] = useState(null);
 
   const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
-  
     const useQuery = () => {
       return new URLSearchParams(useLocation().search);
     };
@@ -214,9 +213,11 @@ const AuthPage = () => {
             </div>
             {isLogin && (
               <div className="flex items-center justify-end">
-                <button className="text-sm text-blue-600 hover:text-blue-500">
-                  Forgot password?
-                </button>
+                <Link to={"/forget-password"}>
+                  <button className="text-sm text-blue-600 hover:text-blue-500 cursor-pointer">
+                    Forgot password?
+                  </button>
+                </Link>
               </div>
             )}
             <button

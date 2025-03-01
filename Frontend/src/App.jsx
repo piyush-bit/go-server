@@ -1,6 +1,8 @@
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import AuthPage from "./Pages/AuthPage";
 import Dashboard from "./Pages/Home";
+import PasswordResetForm from "./Pages/PasswordResetForm";
+import ForgotPasswordPage from "./Pages/ForgetPassword";
 
 export default function App() {
   return (
@@ -8,6 +10,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<AuthPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/forget-password" element={<ForgotPasswordPage/>}/>
+        <Route path="/complete-forget-password" element={<PasswordResetForm/>}/>
       </Routes>
     </div>
   );
