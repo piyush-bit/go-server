@@ -78,3 +78,9 @@ func UpdatePassword(id, password string) error {
 	_, err := instance.db.Exec(query, password, id)
 	return err
 }
+
+func UpdatePasswordWithEmail(email,password string) error {
+	query := `UPDATE users SET password = $1 WHERE email = $2`
+	_, err := instance.db.Exec(query,password,email)
+	return err
+}

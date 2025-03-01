@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	database "go_server/Database"
 	services "go_server/Services"
 	"time"
@@ -22,6 +23,7 @@ func InitiateForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "email is required",
 		})
+		return
 	}
 
 	user, err := database.GetUserByEmail(email)
@@ -30,6 +32,7 @@ func InitiateForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "user not found",
 		})
+		return
 	}
 
 	claim := ForgetPasswordClaim{
@@ -47,6 +50,7 @@ func InitiateForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "error generating token",
 		})
+		return
 	}
 	//insert token to db
 	err = database.InsertForgetPassword(email, token, time.Now().Add(time.Hour))
@@ -54,6 +58,7 @@ func InitiateForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "error inserting token",
 		})
+		return
 	}
 	// get the backend url
 	link := c.Request.Host + "/complete-forget-password?email=" + user.Email + "&token=" + token
@@ -64,6 +69,7 @@ func InitiateForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "error sending email",
 		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"message": "email sent",
@@ -71,13 +77,14 @@ func InitiateForgetPassword(c *gin.Context) {
 }
 
 func CompleteForgetPassword(c *gin.Context) {
-	email := c.Query("email")
-	token := c.Query("token")
+	email := c.PostForm("email")
+	token := c.PostForm("token")
 	newPassword := c.PostForm("password")
 	if email == "" || token == "" || newPassword == "" {
 		c.JSON(400, gin.H{
 			"message": "email ,token and password are required",
 		})
+		return
 	}
 	claim := &ForgetPasswordClaim{}
 	claim, err := VerifyToken(token, claim)
@@ -85,11 +92,13 @@ func CompleteForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "error verifying token",
 		})
+		return
 	}
 	if claim.Email != email {
 		c.JSON(400, gin.H{
 			"message": "email does not match",
 		})
+		return
 	}
 
 	// hash the password
@@ -98,14 +107,17 @@ func CompleteForgetPassword(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"message": "error hashing password",
 		})
+		return
 	}
 
 	// update the password
-	err = database.UpdatePassword(email, hashPassword)
+	err = database.UpdatePasswordWithEmail(email, hashPassword)
 	if err != nil {
+		fmt.Println(err)
 		c.JSON(400, gin.H{
 			"message": "error updating password",
 		})
+		return
 	}
 	c.JSON(200, gin.H{
 		"message": "password updated",
