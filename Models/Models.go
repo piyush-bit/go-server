@@ -27,3 +27,9 @@ type Session struct {
 	UserId   int    `json:"user_id"`
 	AppId    int    `json:"app_id"`
 }
+
+type ForgetPassword struct {
+	Email string `json:"email"`
+	Token string `json:"token"`
+	ExpiredAt string `json:"expired_at"`
+}
