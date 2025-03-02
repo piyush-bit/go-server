@@ -18,7 +18,7 @@ func SendForgetPasswordEmail(to string, link string) error {
 	// Email content
 	subject := "Subject: Forget password link\r\n"
 	mime := "MIME-version: 1.0;\nContent-Type: text/plain; charset=\"UTF-8\";\r\n"
-	body := "Click here to reset your password: " + link + "\r\n"
+	body := fmt.Sprintf("Click <a href=\"%s\">here</a> to reset your password\r\n", link)
 
 	// Combine email parts
 	message := []byte(subject + mime + "\r\n" + body)
