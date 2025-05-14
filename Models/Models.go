@@ -33,3 +33,18 @@ type ForgetPassword struct {
 	Token string `json:"token"`
 	ExpiredAt string `json:"expired_at"`
 }
+
+
+type GoogleUser struct {
+    Iss            string `json:"iss"`
+    Azp            string `json:"azp"`
+    Aud            string `json:"aud"`
+    Sub            string `json:"sub"`
+    Email          string `json:"email"`
+    EmailVerified  string `json:"email_verified"`
+    Name           string `json:"name"`
+    Picture        string `json:"picture"`
+    GivenName      string `json:"given_name"`
+    FamilyName     string `json:"family_name"`
+    Locale         string `json:"locale"`
+}

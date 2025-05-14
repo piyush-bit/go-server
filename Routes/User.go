@@ -15,6 +15,7 @@ func SetupRoutes(router *gin.Engine) {
 	auth.POST("/change-password",controller.ChangePassword)
 	auth.POST("/forget-password", controller.InitiateForgetPassword)
 	auth.POST("/reset-password", controller.CompleteForgetPassword)
+	auth.POST("/google-login", controller.ContinueWithGoogle)
 
 
 	// Protected user routes with JWT

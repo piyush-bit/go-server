@@ -2,10 +2,14 @@ package controller
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	database "go_server/Database"
+	"net/http"
 	"strconv"
 	"time"
+
+	models "go_server/Models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -203,6 +207,14 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	if user.Password == "GOOGLE" {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "User logged in with google",
+		})
+		return
+	}
+
 	// check if the password is correct
 	if !CheckPasswordHash(password, user.Password) {
 		c.JSON(401, gin.H{
@@ -295,7 +307,159 @@ func Login(c *gin.Context) {
 
 }
 
-func ChangePassword(c *gin.Context){
+// Google token info endpoint
+const googleTokenInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
+
+func VerifyGoogleToken(token string) (models.GoogleUser, error) {
+	var user models.GoogleUser
+
+	// Make a request to Google's token verification endpoint
+	req, err := http.NewRequest("GET", googleTokenInfoURL, nil)
+	if err != nil {
+		return user, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return user, fmt.Errorf("failed to verify token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		return user, fmt.Errorf("token verification failed with status %d: %s", resp.StatusCode, string(body[:n]))
+		
+	}
+
+	// Decode the JSON response
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&user); err != nil {
+		return user, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	// Optional: You can add further validation here (e.g., check audience/client_id)
+
+	return user, nil
+}
+
+func ContinueWithGoogle(c *gin.Context) {
+	GoogleToken := c.PostForm("google_token")
+	if GoogleToken == "" {
+		c.JSON(400, gin.H{
+			"status":  "error",
+			"message": "Google token is required",
+		})
+		return
+	}
+	// verify the google token
+	googleUser, err := VerifyGoogleToken(GoogleToken)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status":  "error",
+			"message": "Invalid google token",
+		})
+		return
+	}
+	// check if the user exists in the database
+	user, err := database.GetUserByEmail(googleUser.Email)
+	if err != nil {
+		// if the user does not exist, create a new user
+		id, err := database.InsertUser(googleUser.Email, googleUser.Name, "GOOGLE")
+		if err != nil {
+			c.JSON(500, gin.H{
+				"status":  "error",
+				"message": "Error inserting the user",
+			})
+			return
+		}
+		user = models.User{
+			ID:    id,
+			Name:  googleUser.Name,
+			Email: googleUser.Email,
+		}
+	}
+	// generate a jwt token
+	AccessClaim := AcessTokenClaim{
+		Id:    user.ID,
+		Name:  googleUser.Name,
+		Email: googleUser.Email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	RefreshClaim := RefreshTokenClaim{
+		Id: user.ID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * 5 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token, err := GenerateToken(AccessClaim)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+	refreshToken, err := GenerateToken(RefreshClaim)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error generating the token",
+		})
+		return
+	}
+	appId := c.PostForm("app_id")
+	appIdInt, err := strconv.Atoi(appId)
+	if err != nil {
+		c.JSON(200, gin.H{
+			"status": "success",
+			"data": gin.H{
+				"token":         token,
+				"refresh_token": refreshToken,
+				"id":            user.ID,
+				"email":         user.Email,
+				"name":          user.Name,
+			},
+		})
+		return
+	}
+	tokenId, err := database.InsertToken(appIdInt, token, refreshToken)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
+	err = database.InsertOrUpdateSession(user.ID, appIdInt, refreshToken)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"status":  "error",
+			"message": "Error inserting the token",
+		})
+		return
+	}
+	// send the response
+	c.JSON(200, gin.H{
+		"status": "success",
+		"data": gin.H{
+			"token":         token,
+			"refresh_token": refreshToken,
+			"token_id":      tokenId,
+			"id":            user.ID,
+			"email":         user.Email,
+			"name":          user.Name,
+		},
+	})
+}
+
+func ChangePassword(c *gin.Context) {
 	// get the token from the request
 	id := c.PostForm("id")
 	oldPassword := c.PostForm("old_password")
@@ -340,7 +504,7 @@ func ChangePassword(c *gin.Context){
 
 	// send the response
 	c.JSON(200, gin.H{
-		"status": "success",
+		"status":  "success",
 		"message": "Password changed successfully",
 	})
 }
