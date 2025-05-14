@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Github, Mail, LogIn } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import GoogleAuthButton from '../Components/GoogleAuthButton';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
@@ -10,7 +11,40 @@ const AuthPage = () => {
     const [name, setName] = useState('');
     const [companyData, setCompanyData] = useState(null);
 
-  const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
+    const BACKEND_URI = import.meta.env.VITE_BACKEND_URI??"";
+
+    const handleGoogleLogin = async (accessToken) => {
+      const formData = new FormData();
+      formData.append('google_token', accessToken);
+      if(companyData != null) {
+        formData.append('app_id', companyData.id);
+      }
+
+      try {
+        const response = await fetch(BACKEND_URI+'/api/v1/google-login', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        console.log('Google login successful:', data);
+
+        if(companyData != null) {
+          // Redirect to company login page
+          window.location.href = companyData.callback_url + "?token_id=" + data.data.token_id;
+        }
+        // store token in local storage 
+        localStorage.setItem('token', data.data.token);
+        navigate('/dashboard');
+      } catch (error) {
+        console.error('Error during Google login:', error);
+      }
+    };
+
     const useQuery = () => {
       return new URLSearchParams(useLocation().search);
     };
@@ -140,7 +174,7 @@ const AuthPage = () => {
                 <button
                   onClick={() => setIsLogin(!isLogin)}
                   className="text-blue-600 hover:text-blue-500 font-medium transition-colors"
-                >
+                  >
                   {isLogin ? 'Sign up' : 'Log in'}
                 </button>
               </p>
@@ -148,12 +182,12 @@ const AuthPage = () => {
           </div>
   
           {/* SSO Buttons */}
-          <div className="space-y-3 hidden">
+          <div className="space-y-3 ">
             <button className="w-full flex items-center justify-center gap-3 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
               <Mail className="h-5 w-5" />
-              Continue with Google
+              <GoogleAuthButton onGoogleLogin={handleGoogleLogin} />
             </button>
-            <button className="w-full flex items-center justify-center gap-3 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+            <button className="w-full flex hidden items-center justify-center gap-3 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
               <Github className="h-5 w-5" />
               Continue with GitHub
             </button>
