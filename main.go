@@ -2,21 +2,16 @@ package main
 
 import (
 	"fmt"
+	_ "go_server/Config"
 	routes "go_server/Routes"
-	"log"
 	"os"
 	"strings"
-
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
+
 func main() {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("Error loading .env file")
-	}
+
 	router := gin.Default()
 
 	// Add CORS middleware
